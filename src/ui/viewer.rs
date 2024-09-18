@@ -1,6 +1,5 @@
-use egui::{Color32, Painter, Pos2, Rect, Style, Ui};
-
 use crate::{InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
+use egui::{Color32, Painter, Pos2, Rect, Style, Ui};
 
 use super::{pin::AnyPins, BackgroundPattern, NodeLayout, PinInfo, SnarlStyle, Viewport};
 
