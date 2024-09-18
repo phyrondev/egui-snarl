@@ -1,6 +1,5 @@
-use egui::{Pos2, Rect, Ui};
-
 use crate::{InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
+use egui::{Pos2, Rect, Ui};
 
 use super::pin::{AnyPins, PinInfo};
 
