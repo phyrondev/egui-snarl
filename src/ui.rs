@@ -712,7 +712,7 @@ impl<T> Snarl<T> {
                 }
             }
 
-            if bg_r.drag_started_by(PointerButton::Primary) && input.modifiers.shift {
+            if bg_r.drag_started_by(PointerButton::Primary) {
                 let screen_pos = input.interact_pos.unwrap_or(viewport.center());
                 let graph_pos = snarl_state.screen_pos_to_graph(screen_pos, viewport);
                 snarl_state.start_rect_selection(graph_pos);
@@ -723,9 +723,11 @@ impl<T> Snarl<T> {
                     let screen_pos = input.hover_pos.unwrap();
                     let graph_pos = snarl_state.screen_pos_to_graph(screen_pos, viewport);
                     snarl_state.update_rect_selection(graph_pos);
-                } else {
-                    snarl_state.pan(-bg_r.drag_delta());
                 }
+            }
+
+            if bg_r.dragged_by(PointerButton::Secondary) {
+                snarl_state.pan(-bg_r.drag_delta());
             }
 
             if bg_r.drag_stopped_by(PointerButton::Primary) {
@@ -781,7 +783,7 @@ impl<T> Snarl<T> {
                 snarl_state.set_offset(centers_sum * snarl_state.scale());
             }
 
-            if input.modifiers.command && bg_r.clicked_by(PointerButton::Primary) {
+            if bg_r.clicked_by(PointerButton::Primary) {
                 snarl_state.deselect_all_nodes();
             }
 
@@ -1061,6 +1063,14 @@ impl<T> Snarl<T> {
                 snarl_state.select_one_node(input.modifiers.command, node);
             } else if input.modifiers.command {
                 snarl_state.deselect_one_node(node);
+            } else if snarl_state.selected_nodes().contains(&node) {
+                if r.clicked_by(PointerButton::Primary) {
+                    snarl_state.deselect_all_nodes();
+                }
+                snarl_state.select_one_node(input.modifiers.command, node);
+            } else {
+                snarl_state.deselect_all_nodes();
+                snarl_state.select_one_node(input.modifiers.command, node);
             }
         }
 
