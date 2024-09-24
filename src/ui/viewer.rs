@@ -239,4 +239,10 @@ pub trait SnarlViewer<T> {
     fn drop_inputs(&mut self, pin: &InPin, snarl: &mut Snarl<T>) {
         snarl.drop_inputs(pin.id);
     }
+
+    /// Allows last-minute updates to the selected nodes.
+    #[inline]
+    fn update_selection(&self, selected_nodes: &[NodeId]) -> Option<Vec<NodeId>> {
+        None
+    }
 }
