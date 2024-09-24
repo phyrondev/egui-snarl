@@ -671,6 +671,10 @@ impl<T> Snarl<T> {
             let mut snarl_state =
                 SnarlState::load(ui.ctx(), snarl_id, pivot, viewport, self, style);
 
+            if let Some(selection) = viewer.update_selection(snarl_state.selected_nodes()) {
+                snarl_state.select_many_nodes(true, selection.iter().cloned());
+            }
+
             ui.style_mut().zoom(snarl_state.scale());
 
             // let mut node_style: Style = (**ui.style()).clone();
