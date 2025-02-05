@@ -1,4 +1,5 @@
 workspace = { members = ["demo"] }
+
 [package]
 name = "egui-snarl"
 version = "0.6.0"
@@ -10,20 +11,21 @@ repository = "https://github.com/zakarumych/egui-snarl"
 readme = "README.md"
 keywords = ["egui", "node", "graph", "ui", "node-graph"]
 categories = ["gui", "visualization"]
+rust-version = "1.81"
 
 [features]
 serde = ["dep:serde", "egui/serde", "slab/serde"]
 
 [dependencies]
-egui = { version = "0.29" }
+egui = { version = "0.30" }
 slab = { version = "0.4" }
 serde = { version = "1.0", features = ["derive"], optional = true }
 
-egui-probe = { version = "0.6.0", features = ["derive"], optional = true }
+egui-probe = { version = "0.7.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
-eframe = { version = "0.29", features = ["serde", "persistence"] }
-egui_extras = { version = "0.29", features = ["all_loaders"] }
+eframe = { version = "0.30", features = ["serde", "persistence"] }
+egui_extras = { version = "0.30", features = ["all_loaders"] }
 syn = { version = "2.0", features = ["extra-traits"] }
 serde_json = { version = "1.0" }
 

@@ -32,7 +32,7 @@ pub use self::{
 };
 
 /// Controls how header, pins, body and footer are laid out in the node.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "egui-probe", derive(egui_probe::EguiProbe))]
 pub enum NodeLayout {
@@ -356,7 +356,7 @@ impl SnarlStyle {
     fn get_pin_size(&self, scale: f32, style: &Style) -> f32 {
         self.pin_size
             .zoomed(scale)
-            .unwrap_or_else(|| style.spacing.interact_size.y * 0.6)
+            .unwrap_or(style.spacing.interact_size.y * 0.6)
     }
 
     fn get_pin_fill(&self, style: &Style) -> Color32 {
@@ -365,30 +365,32 @@ impl SnarlStyle {
     }
 
     fn get_pin_stroke(&self, scale: f32, style: &Style) -> Stroke {
-        self.pin_stroke.zoomed(scale).unwrap_or(Stroke::new(
-            style.visuals.widgets.active.bg_stroke.width,
-            style.visuals.widgets.active.bg_stroke.color,
-        ))
+        self.pin_stroke.zoomed(scale).unwrap_or_else(|| {
+            Stroke::new(
+                style.visuals.widgets.active.bg_stroke.width,
+                style.visuals.widgets.active.bg_stroke.color,
+            )
+        })
     }
 
     fn get_pin_shape(&self) -> PinShape {
-        self.pin_shape.unwrap_or(PinShape::Circle).into()
+        self.pin_shape.unwrap_or(PinShape::Circle)
     }
 
     fn get_pin_placement(&self) -> PinPlacement {
-        self.pin_placement.unwrap_or(PinPlacement::default())
+        self.pin_placement.unwrap_or_default()
     }
 
     fn get_wire_width(&self, scale: f32, style: &Style) -> f32 {
         self.wire_width
             .zoomed(scale)
-            .unwrap_or(self.get_pin_size(scale, style) * 0.1)
+            .unwrap_or_else(|| self.get_pin_size(scale, style) * 0.1)
     }
 
     fn get_wire_frame_size(&self, scale: f32, style: &Style) -> f32 {
         self.wire_frame_size
             .zoomed(scale)
-            .unwrap_or(self.get_pin_size(scale, style) * 3.0)
+            .unwrap_or_else(|| self.get_pin_size(scale, style) * 3.0)
     }
 
     fn get_downscale_wire_frame(&self) -> bool {
@@ -410,7 +412,7 @@ impl SnarlStyle {
     fn get_header_drag_space(&self, scale: f32, style: &Style) -> Vec2 {
         self.header_drag_space
             .zoomed(scale)
-            .unwrap_or(vec2(style.spacing.icon_width, style.spacing.icon_width))
+            .unwrap_or_else(|| vec2(style.spacing.icon_width, style.spacing.icon_width))
     }
 
     fn get_collapsible(&self) -> bool {
@@ -418,7 +420,7 @@ impl SnarlStyle {
     }
 
     fn get_bg_frame(&self, style: &Style) -> Frame {
-        self.bg_frame.unwrap_or(Frame::canvas(style))
+        self.bg_frame.unwrap_or_else(|| Frame::canvas(style))
     }
 
     fn get_bg_pattern_stroke(&self, scale: f32, style: &Style) -> Stroke {
@@ -436,7 +438,7 @@ impl SnarlStyle {
     }
 
     fn get_scale_velocity(&self) -> f32 {
-        self.scale_velocity.unwrap_or(0.005)
+        self.scale_velocity.unwrap_or(1.0)
     }
 
     fn get_node_frame(&self, scale: f32, style: &Style) -> Frame {
@@ -456,15 +458,17 @@ impl SnarlStyle {
     }
 
     fn get_select_stroke(&self, scale: f32, style: &Style) -> Stroke {
-        self.select_stoke.zoomed(scale).unwrap_or(Stroke::new(
-            style.visuals.selection.stroke.width,
-            style.visuals.selection.stroke.color.gamma_multiply(0.5),
-        ))
+        self.select_stoke.zoomed(scale).unwrap_or_else(|| {
+            Stroke::new(
+                style.visuals.selection.stroke.width,
+                style.visuals.selection.stroke.color.gamma_multiply(0.5),
+            )
+        })
     }
 
     fn get_select_fill(&self, style: &Style) -> Color32 {
         self.select_fill
-            .unwrap_or(style.visuals.selection.bg_fill.gamma_multiply(0.3))
+            .unwrap_or_else(|| style.visuals.selection.bg_fill.gamma_multiply(0.3))
     }
 
     fn get_select_rect_contained(&self) -> bool {
@@ -472,12 +476,14 @@ impl SnarlStyle {
     }
 
     fn get_select_style(&self, scale: f32, style: &Style) -> SelectionStyle {
-        self.select_style.zoomed(scale).unwrap_or(SelectionStyle {
-            margin: style.spacing.window_margin,
-            rounding: style.visuals.window_rounding,
-            fill: self.get_select_fill(style),
-            stroke: self.get_select_stroke(scale, style),
-        })
+        self.select_style
+            .zoomed(scale)
+            .unwrap_or_else(|| SelectionStyle {
+                margin: style.spacing.window_margin,
+                rounding: style.visuals.window_rounding,
+                fill: self.get_select_fill(style),
+                stroke: self.get_select_stroke(scale, style),
+            })
     }
 }
 
@@ -495,6 +501,7 @@ mod serde_frame_option {
         pub stroke: egui::Stroke,
     }
 
+    #[allow(clippy::ref_option)]
     pub fn serialize<S>(frame: &Option<egui::Frame>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -579,7 +586,7 @@ impl Default for SnarlStyle {
 struct Input {
     hover_pos: Option<Pos2>,
     interact_pos: Option<Pos2>,
-    scroll_delta: f32,
+    zoom_delta: f32,
     // primary_pressed: bool,
     secondary_pressed: bool,
     modifiers: Modifiers,
@@ -616,7 +623,7 @@ impl<T> Snarl<T> {
         style: &SnarlStyle,
         snarl_state: &SnarlState,
         viewport: &Rect,
-        ui: &mut Ui,
+        ui: &Ui,
     ) where
         V: SnarlViewer<T>,
     {
@@ -637,7 +644,6 @@ impl<T> Snarl<T> {
     }
 
     /// Render [`Snarl`] using given viewer and style into the [`Ui`].
-
     pub fn show<V>(&mut self, viewer: &mut V, style: &SnarlStyle, id_salt: impl Hash, ui: &mut Ui)
     where
         V: SnarlViewer<T>,
@@ -650,7 +656,7 @@ impl<T> Snarl<T> {
         let bg_frame = style.get_bg_frame(ui.style());
 
         let input = ui.ctx().input(|i| Input {
-            scroll_delta: i.raw_scroll_delta.y,
+            zoom_delta: i.zoom_delta(),
             hover_pos: i.pointer.hover_pos(),
             interact_pos: i.pointer.interact_pos(),
             modifiers: i.modifiers,
@@ -696,9 +702,9 @@ impl<T> Snarl<T> {
                 Some(hover_pos)
                     if viewport.contains(hover_pos) && ui.rect_contains_pointer(viewport) =>
                 {
-                    if input.scroll_delta != 0.0 {
+                    if input.zoom_delta != 1.0 {
                         let new_scale = (snarl_state.scale()
-                            * (1.0 + input.scroll_delta * style.get_scale_velocity()))
+                            * input.zoom_delta.powf(style.get_scale_velocity()))
                         .clamp(style.get_min_scale(), style.get_max_scale());
 
                         snarl_state.set_scale(new_scale);
@@ -839,8 +845,13 @@ impl<T> Snarl<T> {
                 }
             }
 
+//<<<<<<< HEAD
             if bg_r.drag_started_by(PointerButton::Primary) {
                 let screen_pos = input.interact_pos.unwrap_or(viewport.center());
+//=======
+//            if bg_r.drag_started_by(PointerButton::Primary) && input.modifiers.shift {
+//                let screen_pos = input.interact_pos.unwrap_or_else(|| viewport.center());
+//>>>>>>> b17ce7513987729f1ebe62ed03ca60bd74dcbac2
                 let graph_pos = snarl_state.screen_pos_to_graph(screen_pos, viewport);
                 snarl_state.start_rect_selection(graph_pos);
             }
@@ -860,9 +871,10 @@ impl<T> Snarl<T> {
             if bg_r.drag_stopped_by(PointerButton::Primary) {
                 if let Some(select_rect) = snarl_state.rect_selection() {
                     let select_nodes = node_rects.into_iter().filter_map(|(id, rect)| {
-                        let select = match style.get_select_rect_contained() {
-                            true => select_rect.contains_rect(rect),
-                            false => select_rect.intersects(rect),
+                        let select = if style.get_select_rect_contained() {
+                            select_rect.contains_rect(rect)
+                        } else {
+                            select_rect.intersects(rect)
                         };
 
                         if select {
@@ -906,7 +918,10 @@ impl<T> Snarl<T> {
 
             // Do centering unless no nodes are present.
             if style.get_centering() && bg_r.double_clicked() && centers_weight > 0 {
-                centers_sum /= centers_weight as f32;
+                #[allow(clippy::cast_precision_loss)]
+                {
+                    centers_sum /= centers_weight as f32;
+                }
                 snarl_state.set_offset(centers_sum * snarl_state.scale());
             }
 
@@ -914,7 +929,7 @@ impl<T> Snarl<T> {
                 snarl_state.deselect_all_nodes();
             }
 
-            // Wire end position will be overrided when link graph menu is opened.
+            // Wire end position will be overridden when link graph menu is opened.
             let mut wire_end_pos = input.hover_pos.unwrap_or_default();
 
             if drag_released {
@@ -1031,7 +1046,7 @@ impl<T> Snarl<T> {
                             Stroke::new(wire_width, to_r.pin_color),
                             to_r.wire_style
                                 .zoomed(snarl_state.scale())
-                                .unwrap_or(style.get_wire_style(snarl_state.scale())),
+                                .unwrap_or_else(|| style.get_wire_style(snarl_state.scale())),
                         );
                     }
                 }
@@ -1052,7 +1067,7 @@ impl<T> Snarl<T> {
                             from_r
                                 .wire_style
                                 .zoomed(snarl_state.scale())
-                                .unwrap_or(style.get_wire_style(snarl_state.scale())),
+                                .unwrap_or_else(|| style.get_wire_style(snarl_state.scale())),
                         );
                     }
                 }
@@ -1095,6 +1110,7 @@ impl<T> Snarl<T> {
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_inputs<V>(
         &mut self,
         viewer: &mut V,
@@ -1245,6 +1261,7 @@ impl<T> Snarl<T> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_outputs<V>(
         &mut self,
         viewer: &mut V,
@@ -1394,6 +1411,7 @@ impl<T> Snarl<T> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_body<V>(
         &mut self,
         viewer: &mut V,
@@ -1404,7 +1422,7 @@ impl<T> Snarl<T> {
         body_rect: Rect,
         clip_rect: Rect,
         viewport: Rect,
-        snarl_state: &mut SnarlState,
+        snarl_state: &SnarlState,
     ) -> DrawBodyResponse
     where
         V: SnarlViewer<T>,
@@ -1419,8 +1437,8 @@ impl<T> Snarl<T> {
 
         viewer.show_body(
             node,
-            &inputs,
-            &outputs,
+            inputs,
+            outputs,
             &mut body_ui,
             snarl_state.scale(),
             self,
@@ -1598,45 +1616,52 @@ impl<T> Snarl<T> {
         let mut new_pins_size = Vec2::ZERO;
 
         let r = node_frame.show(node_ui, |ui| {
-            let min_pin_y = node_rect.min.y + node_state.header_height() * 0.5;
+            let min_pin_y = node_state.header_height().mul_add(0.5, node_rect.min.y);
 
             // Input pins' center side by X axis.
             let input_x = match pin_placement {
                 PinPlacement::Inside => {
-                    node_frame_rect.left() + node_frame.inner_margin.left + pin_size * 0.5
+                    pin_size.mul_add(0.5, node_frame_rect.left() + node_frame.inner_margin.left)
                 }
                 PinPlacement::Edge => node_frame_rect.left(),
-                PinPlacement::Outside { margin } => {
-                    node_frame_rect.left() - margin * snarl_state.scale() - pin_size * 0.5
-                }
+                PinPlacement::Outside { margin } => pin_size.mul_add(
+                    -0.5,
+                    margin.mul_add(-snarl_state.scale(), node_frame_rect.left()),
+                ),
             };
 
             // Input pins' spacing required.
             let input_spacing = match pin_placement {
                 PinPlacement::Inside => Some(pin_size),
-                PinPlacement::Edge => {
-                    Some((pin_size * 0.5 - node_frame.inner_margin.left).max(0.0))
-                }
+                PinPlacement::Edge => Some(
+                    pin_size
+                        .mul_add(0.5, -node_frame.inner_margin.left)
+                        .max(0.0),
+                ),
                 PinPlacement::Outside { .. } => None,
             };
 
             // Output pins' center side by X axis.
             let output_x = match pin_placement {
-                PinPlacement::Inside => {
-                    node_frame_rect.right() - node_frame.inner_margin.right - pin_size * 0.5
-                }
+                PinPlacement::Inside => pin_size.mul_add(
+                    -0.5,
+                    node_frame_rect.right() - node_frame.inner_margin.right,
+                ),
                 PinPlacement::Edge => node_frame_rect.right(),
-                PinPlacement::Outside { margin } => {
-                    node_frame_rect.right() + margin * snarl_state.scale() + pin_size * 0.5
-                }
+                PinPlacement::Outside { margin } => pin_size.mul_add(
+                    0.5,
+                    margin.mul_add(snarl_state.scale(), node_frame_rect.right()),
+                ),
             };
 
             // Output pins' spacing required.
             let output_spacing = match pin_placement {
                 PinPlacement::Inside => Some(pin_size),
-                PinPlacement::Edge => {
-                    Some((pin_size * 0.5 - node_frame.inner_margin.right).max(0.0))
-                }
+                PinPlacement::Edge => Some(
+                    pin_size
+                        .mul_add(0.5, -node_frame.inner_margin.right)
+                        .max(0.0),
+                ),
                 PinPlacement::Outside { .. } => None,
             };
 
@@ -2124,7 +2149,6 @@ impl<T> Snarl<T> {
         );
 
         node_state.store(ui.ctx());
-        ui.ctx().request_repaint();
         Some(DrawNodeResponse {
             node_moved,
             node_to_top,
@@ -2135,7 +2159,7 @@ impl<T> Snarl<T> {
     }
 }
 
-fn mix_colors(a: Color32, b: Color32) -> Color32 {
+const fn mix_colors(a: Color32, b: Color32) -> Color32 {
     Color32::from_rgba_premultiplied(
         ((a.r() as u32 + b.r() as u32) / 2) as u8,
         ((a.g() as u32 + b.g() as u32) / 2) as u8,
@@ -2213,7 +2237,7 @@ fn mix_colors(a: Color32, b: Color32) -> Color32 {
 // }
 
 #[test]
-fn snarl_style_is_send_sync() {
-    fn is_send_sync<T: Send + Sync>() {}
+const fn snarl_style_is_send_sync() {
+    const fn is_send_sync<T: Send + Sync>() {}
     is_send_sync::<SnarlStyle>();
 }
