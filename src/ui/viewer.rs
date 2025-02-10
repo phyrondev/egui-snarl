@@ -358,7 +358,7 @@ pub trait SnarlViewer<T> {
 
     /// Allows last-minute updates to the selected nodes.
     #[inline]
-    fn update_selection(&self, selected_nodes: &[NodeId]) -> Option<Vec<NodeId>> {
+    fn update_selection(&mut self, selected_nodes: &[NodeId]) -> Option<Vec<NodeId>> {
         None
     }
 }
