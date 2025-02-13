@@ -3,9 +3,12 @@
 use std::{collections::HashMap, hash::Hash};
 
 use egui::{
-    collapsing_header::paint_default_icon, epaint::Shadow, pos2, vec2, Align, Color32, Frame, Id,
-    Layout, Margin, Modifiers, PointerButton, Pos2, Rect, Rounding, Sense, Shape, Stroke, Style,
-    Ui, UiBuilder, Vec2,
+    collapsing_header::paint_default_icon,
+    epaint::{CornerRadiusF32, Shadow},
+    pos2,
+    response::Flags,
+    vec2, Align, Color32, CornerRadius, Frame, Id, Layout, Margin, Modifiers, PointerButton, Pos2,
+    Rect, Sense, Shape, Stroke, StrokeKind, Style, Ui, UiBuilder, Vec2,
 };
 
 use crate::{InPin, InPinId, Node, NodeId, OutPin, OutPinId, Snarl};
@@ -92,7 +95,7 @@ pub struct SelectionStyle {
     pub margin: Margin,
 
     /// Rounding of selection rect.
-    pub rounding: Rounding,
+    pub corner_radius: CornerRadius,
 
     /// Fill color of selection rect.
     pub fill: Color32,
@@ -480,7 +483,7 @@ impl SnarlStyle {
             .zoomed(scale)
             .unwrap_or_else(|| SelectionStyle {
                 margin: style.spacing.window_margin,
-                rounding: style.visuals.window_rounding,
+                corner_radius: style.visuals.window_corner_radius,
                 fill: self.get_select_fill(style),
                 stroke: self.get_select_stroke(scale, style),
             })
@@ -495,7 +498,7 @@ mod serde_frame_option {
     pub struct Frame {
         pub inner_margin: egui::Margin,
         pub outer_margin: egui::Margin,
-        pub rounding: egui::Rounding,
+        pub corner_radius: egui::CornerRadius,
         pub shadow: egui::epaint::Shadow,
         pub fill: egui::Color32,
         pub stroke: egui::Stroke,
@@ -510,7 +513,7 @@ mod serde_frame_option {
             Some(frame) => Frame {
                 inner_margin: frame.inner_margin,
                 outer_margin: frame.outer_margin,
-                rounding: frame.rounding,
+                corner_radius: frame.corner_radius,
                 shadow: frame.shadow,
                 fill: frame.fill,
                 stroke: frame.stroke,
@@ -528,7 +531,7 @@ mod serde_frame_option {
         Ok(frame_opt.map(|frame| egui::Frame {
             inner_margin: frame.inner_margin,
             outer_margin: frame.outer_margin,
-            rounding: frame.rounding,
+            corner_radius: frame.corner_radius,
             shadow: frame.shadow,
             fill: frame.fill,
             stroke: frame.stroke,
@@ -806,8 +809,8 @@ impl<T> Snarl<T> {
                             hovered_wire_disconnect |= bg_r.clicked_by(PointerButton::Secondary);
 
                             // Background is not hovered then.
-                            bg_r.hovered = false;
-                            bg_r.clicked = false;
+                            bg_r.flags &= Flags::HOVERED;
+                            bg_r.flags &= Flags::CLICKED;
                         }
                     }
                 }
@@ -845,13 +848,13 @@ impl<T> Snarl<T> {
                 }
             }
 
-//<<<<<<< HEAD
+            //<<<<<<< HEAD
             if bg_r.drag_started_by(PointerButton::Primary) {
                 let screen_pos = input.interact_pos.unwrap_or(viewport.center());
-//=======
-//            if bg_r.drag_started_by(PointerButton::Primary) && input.modifiers.shift {
-//                let screen_pos = input.interact_pos.unwrap_or_else(|| viewport.center());
-//>>>>>>> b17ce7513987729f1ebe62ed03ca60bd74dcbac2
+                //=======
+                //            if bg_r.drag_started_by(PointerButton::Primary) && input.modifiers.shift {
+                //                let screen_pos = input.interact_pos.unwrap_or_else(|| viewport.center());
+                //>>>>>>> b17ce7513987729f1ebe62ed03ca60bd74dcbac2
                 let graph_pos = snarl_state.screen_pos_to_graph(screen_pos, viewport);
                 snarl_state.start_rect_selection(graph_pos);
             }
@@ -900,6 +903,7 @@ impl<T> Snarl<T> {
                     0.0,
                     style.get_select_fill(ui.style()),
                     style.get_select_stroke(snarl_state.scale(), ui.style()),
+                    StrokeKind::Middle,
                 );
             }
 
@@ -913,7 +917,7 @@ impl<T> Snarl<T> {
                 && ui.input(|x| x.pointer.button_down(PointerButton::Secondary))
             {
                 let _ = snarl_state.take_wires();
-                bg_r.clicked = false;
+                bg_r.flags &= !Flags::CLICKED;
             }
 
             // Do centering unless no nodes are present.
@@ -962,7 +966,7 @@ impl<T> Snarl<T> {
                         snarl_state.revert_take_wires(new_wires);
 
                         // Force open context menu.
-                        bg_r.long_touched = true;
+                        bg_r.flags |= Flags::LONG_TOUCHED;
                     }
                     _ => {}
                 }
@@ -1532,9 +1536,10 @@ impl<T> Snarl<T> {
 
             ui.painter().rect(
                 select_rect,
-                select_style.rounding,
+                select_style.corner_radius,
                 select_style.fill,
                 select_style.stroke,
+                StrokeKind::Middle,
             );
         }
 
@@ -1620,9 +1625,10 @@ impl<T> Snarl<T> {
 
             // Input pins' center side by X axis.
             let input_x = match pin_placement {
-                PinPlacement::Inside => {
-                    pin_size.mul_add(0.5, node_frame_rect.left() + node_frame.inner_margin.left)
-                }
+                PinPlacement::Inside => pin_size.mul_add(
+                    0.5,
+                    node_frame_rect.left() + node_frame.inner_margin.left as f32,
+                ),
                 PinPlacement::Edge => node_frame_rect.left(),
                 PinPlacement::Outside { margin } => pin_size.mul_add(
                     -0.5,
@@ -1635,7 +1641,7 @@ impl<T> Snarl<T> {
                 PinPlacement::Inside => Some(pin_size),
                 PinPlacement::Edge => Some(
                     pin_size
-                        .mul_add(0.5, -node_frame.inner_margin.left)
+                        .mul_add(0.5, -node_frame.inner_margin.left as f32)
                         .max(0.0),
                 ),
                 PinPlacement::Outside { .. } => None,
@@ -1645,7 +1651,7 @@ impl<T> Snarl<T> {
             let output_x = match pin_placement {
                 PinPlacement::Inside => pin_size.mul_add(
                     -0.5,
-                    node_frame_rect.right() - node_frame.inner_margin.right,
+                    node_frame_rect.right() - node_frame.inner_margin.right as f32,
                 ),
                 PinPlacement::Edge => node_frame_rect.right(),
                 PinPlacement::Outside { margin } => pin_size.mul_add(
@@ -1659,7 +1665,7 @@ impl<T> Snarl<T> {
                 PinPlacement::Inside => Some(pin_size),
                 PinPlacement::Edge => Some(
                     pin_size
-                        .mul_add(0.5, -node_frame.inner_margin.right)
+                        .mul_add(0.5, -node_frame.inner_margin.right as f32)
                         .max(0.0),
                 ),
                 PinPlacement::Outside { .. } => None,
