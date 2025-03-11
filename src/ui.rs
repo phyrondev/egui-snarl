@@ -963,10 +963,12 @@ impl<T> Snarl<T> {
                     (Some(new_wires), None) if bg_r.hovered() => {
                         // A new pin is dropped without connecting it anywhere. This
                         // will open a pop-up window for creating a new node.
-                        snarl_state.revert_take_wires(new_wires);
+                        //snarl_state.revert_take_wires(new_wires);
 
                         // Force open context menu.
-                        bg_r.flags |= Flags::LONG_TOUCHED;
+                        // bg_r.flags |= Flags::LONG_TOUCHED;
+
+                        snarl_state.close_link_menu();
                     }
                     _ => {}
                 }
